@@ -4,6 +4,7 @@ from rich.live import Live
 from rich.table import Table
 from time import sleep
 from rich.panel import Panel
+from rich.text import Text
 import monithor
 
 def perc(value):
@@ -16,13 +17,13 @@ def gb(value):
     return f"{value >> 30} GB"
 
 def general_info():
-    return f"{monithor.cpu_info()}\n{monithor.load()} "
+    return f"{monithor.cpu_info()}\n{monithor.load()}\n{monithor.boot_time()}, {monithor.uptime()}"
 
 def disks_table():
     disks_table = Table(expand=True)
 
     disks_table.add_column("device")
-    disks_table.add_column("usage")
+    disks_table.add_column("usage", justify="right", style="green")
 
     for disk in monithor.disks():
         disk_percent = f"{disk.get("usage").percent:.0f}%"
@@ -31,15 +32,19 @@ def disks_table():
     return disks_table
 
 def memory_info():
-    #total=33548365824, available=28166766592, percent=16.0, 
-    #used=4695076864, free=25200201728
+    
+    
+    mem_table = Table(expand=True)
 
-    return (f"total {gb(monithor.memory().total)}\n"
-            f"available {gb(monithor.memory().available)}\n"
-            f"percent {perc(monithor.memory().percent)}\n"
-            f"free {gb(monithor.memory().free)}\n"
-            f"used {gb(monithor.memory().used)}"
-            )
+    mem_table.add_column("Key")
+    mem_table.add_column("Value", justify="right", style="green")
+    mem_table.add_row("Total", gb(monithor.memory().total))
+    mem_table.add_row("%", perc(monithor.memory().percent))
+    mem_table.add_row("Aval", gb(monithor.memory().available))
+    mem_table.add_row("Free", gb(monithor.memory().free))
+    mem_table.add_row("used", gb(monithor.memory().used))
+
+    return mem_table
 
 layout = Layout()
 
@@ -57,9 +62,18 @@ layout["main"].split_row(
 
 with Live(layout, screen=True):
     while True:
+
+        cpu_percent = monithor.cpu_percent(raw=True)
+        bars = chr(9608)* int(cpu_percent) 
+        cpu_panel = Panel(Text(f"{cpu_percent:.0f}% {bars}", justify="left", style="bold green"), title="CPU")
+
+        mem_percent = monithor.memory().percent
+        bars = chr(9608)* int(mem_percent) 
+        mem_panel = Panel(Text(f"{mem_percent:.0f}% {bars}", justify="left", style="bold blue"), title="MEM")
+
         layout["header"].update(Panel(general_info(), title="General"))
-        layout["left"].update(Panel(monithor.cpu_percent(), title="CPU"))
-        layout["middle"].update(Panel(memory_info(), title="Memory"))
+        layout["left"].update(cpu_panel)
+        layout["middle"].update(mem_panel)
         layout["right"].update(Panel(disks_table(),title="Disk"))
         layout["footer"].update(Panel("Rede...", title="Network"))
         #sleep(1)
